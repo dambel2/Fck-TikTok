@@ -19,6 +19,7 @@ import Animated, {
   withSequence,
   withTiming
 } from 'react-native-reanimated';
+import { getTikTokTime, requestAccess } from '../../native-modules/ScreenTime';
 
 // Demo router na górze pliku
 const router = { push: (route: string) => Alert.alert('Demo', `Przejście do: ${route}`) };
@@ -37,10 +38,36 @@ export default function HomeScreen() {
   const loading = false;
 
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [todaysTikTokTime] = useState(45); // minutes spent on TikTok today
+  const [todaysTikTokTime, setTodaysTikTokTime] = useState(0); // minutes spent on TikTok today
   const [todaysSaved] = useState(142); // minut zaoszczędzonych dzisiaj
   const [weekProgress] = useState(0.73); // 73% tygodniowego celu
   const [currentTip, setCurrentTip] = useState(0);
+  const [access, setAccess] = useState(false);
+
+  useEffect(() => {
+    const init = async () => {
+      const granted = await requestAccess();
+      setAccess(granted);
+  
+      if (granted) {
+        const t = await getTikTokTime();
+        setTodaysTikTokTime(t); // aktualizacja stanu na start
+      }
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (access) {
+        const t = await getTikTokTime();
+        setTodaysTikTokTime(t);
+      }
+    }, 60000); // co minutę
+  
+    return () => clearInterval(interval);
+  }, [access]);
+  
   
   // Animations
   const pulseAnimation = useSharedValue(1);
@@ -238,7 +265,7 @@ export default function HomeScreen() {
           </View>
           
           <Text style={[styles.tikTokTimeValue, { color: theme.success }]}> 
-            {Math.floor(todaysTikTokTime / 60)}h {todaysTikTokTime % 60}m
+          {Math.floor(todaysTikTokTime / 60)}h {todaysTikTokTime % 60}m
           </Text>
           
           <Text style={[styles.tikTokTimeSubtitle, { color: theme.textSecondary }]}> 
